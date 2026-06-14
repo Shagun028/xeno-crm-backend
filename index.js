@@ -318,29 +318,75 @@ app.get('/api/ai-insights', async (req, res) => {
 app.post('/api/chat', async (req, res) => {
   const { messages } = req.body;
   const lastMessage = messages[messages.length - 1]?.content || '';
-  try {
-    const text = await askAI(`You are an AI marketing assistant for a D2C fashion brand CRM.
-Respond with a single JSON object only. No extra text. No multiple objects.
-Use one of these formats:
-{"type":"action","action":"segment","params":{"description":"..."},"message":"..."}
-{"type":"action","action":"draft_message","params":{"campaignGoal":"...","segmentDescription":"..."},"message":"..."}
-{"type":"message","action":null,"message":"your response here"}
-No markdown. No explanation. Just one single raw JSON object.
-User said: "${lastMessage}"`);
 
+  try {
+    const text = await askAI(`
+You are an AI marketing assistant for a D2C fashion CRM.
+
+You MUST respond with ONLY ONE valid JSON object. No text, no markdown.
+
+Allowed formats:
+
+1. Segment customers:
+{"type":"action","action":"segment","params":{"description":"..."},"message":"..."}
+
+2. Draft message:
+{"type":"action","action":"draft_message","params":{"campaignGoal":"...","segmentDescription":"..."},"message":"..."}
+
+3. Send campaign (CRITICAL):
+{"type":"action","action":"send_campaign","params":{"name":"...","segmentDescription":"...","messageTemplate":"..."},"message":"..."}
+
+4. Default chat:
+{"type":"message","action":null,"message":"..."}
+
+RULES:
+- If user says "send campaign", "launch campaign", "run campaign" → MUST use send_campaign
+- Never respond in plain text
+- Always return exactly ONE JSON object
+
+User said: "${lastMessage}"
+`);
+
+    // 🧠 cleanup AI output
     const clean = text.replace(/```json|```/g, '').trim();
 
-    // Extract first valid JSON object in case model returns multiple
-    const match = clean.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)?\}/);
-    const firstJson = match ? match[0] : clean;
+    console.log("AI RAW OUTPUT:", clean);
+
+    // safer JSON extraction
+    let firstJson = clean;
 
     try {
-      res.json(JSON.parse(firstJson));
-    } catch {
-      res.json({ type: 'message', message: clean, action: null });
+      const start = clean.indexOf('{');
+      const end = clean.lastIndexOf('}');
+
+      if (start !== -1 && end !== -1) {
+        firstJson = clean.substring(start, end + 1);
+      }
+    } catch (err) {
+      console.log("JSON extraction error:", err.message);
     }
+
+    console.log("PARSED JSON:", firstJson);
+
+    try {
+      const parsed = JSON.parse(firstJson);
+      return res.json(parsed);
+    } catch (err) {
+      console.log("JSON parse failed:", err.message);
+
+      return res.json({
+        type: 'message',
+        action: null,
+        message: clean
+      });
+    }
+
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error("Chat error:", e.message);
+
+    res.status(500).json({
+      error: e.message
+    });
   }
 });
 
