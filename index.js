@@ -418,6 +418,8 @@ User said: "${lastMessage}"`;
 
 app.get('/health', (_, res) => res.json({ status: 'ok' }));
 
+require('./seed');
+
 app.listen(process.env.PORT, () => {
   console.log(`🚀 CRM API running on port ${process.env.PORT}`);
 });
