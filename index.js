@@ -6,7 +6,12 @@ const axios = require('axios');
 const db = require('./db');
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: [
+    "http://localhost:3000",
+    "https://xeno-crm-frontend-phi-ten.vercel.app"
+  ]
+}));
 app.use(express.json());
 
 
