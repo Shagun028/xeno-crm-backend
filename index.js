@@ -1,6 +1,4 @@
 require('dotenv').config();
-console.log('KEY EXISTS:', !!process.env.OPENROUTER_API_KEY);
-console.log('KEY PREFIX:', process.env.OPENROUTER_API_KEY?.substring(0, 10));
 const express = require('express');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
@@ -22,7 +20,6 @@ app.use((req, res, next) => {
 });
 
 // ─── sql.js HELPERS ───────────────────────────────────────────
-// sql.js returns [{columns:[...], values:[[...],...]}]
 function all(db, sql, params = []) {
   try {
     const stmt = db.prepare(sql);
@@ -323,15 +320,25 @@ app.post('/api/chat', async (req, res) => {
   const lastMessage = messages[messages.length - 1]?.content || '';
   try {
     const text = await askAI(`You are an AI marketing assistant for a D2C fashion brand CRM.
-Respond with JSON only:
+Respond with a single JSON object only. No extra text. No multiple objects.
+Use one of these formats:
 {"type":"action","action":"segment","params":{"description":"..."},"message":"..."}
 {"type":"action","action":"draft_message","params":{"campaignGoal":"...","segmentDescription":"..."},"message":"..."}
-{"type":"message","action":null,"message":"your response"}
-No markdown. Just raw JSON.
+{"type":"message","action":null,"message":"your response here"}
+No markdown. No explanation. Just one single raw JSON object.
 User said: "${lastMessage}"`);
+
     const clean = text.replace(/```json|```/g, '').trim();
-    try { res.json(JSON.parse(clean)); }
-    catch { res.json({ type: 'message', message: text, action: null }); }
+
+    // Extract first valid JSON object in case model returns multiple
+    const match = clean.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)?\}/);
+    const firstJson = match ? match[0] : clean;
+
+    try {
+      res.json(JSON.parse(firstJson));
+    } catch {
+      res.json({ type: 'message', message: clean, action: null });
+    }
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
