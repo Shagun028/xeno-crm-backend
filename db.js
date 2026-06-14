@@ -5,4 +5,10 @@ const db = {
   communications: []
 };
 
-module.exports = db;
+module.exports = {
+  prepare: () => ({
+    all: () => [],
+    get: () => ({}),
+    run: () => {}
+  })
+};
