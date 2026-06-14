@@ -419,6 +419,72 @@ User said: "${lastMessage}"`;
 app.get('/health', (_, res) => res.json({ status: 'ok' }));
 
 require('./seed');
+const seedDatabase = () => {
+  const count = db.prepare('SELECT COUNT(*) as count FROM customers').get().count;
+
+  if (count > 0) {
+    console.log("DB already seeded");
+    return;
+  }
+
+  console.log("Seeding database...");
+
+  const insertCustomer = db.prepare(`
+    INSERT INTO customers (id, name, email, phone, city, total_spent, order_count, last_order_date, tags)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  const insertOrder = db.prepare(`
+    INSERT INTO orders (id, customer_id, amount, product, category, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+
+  const customers = [
+    { name: 'Aditi Sharma', email: 'aditi@gmail.com', phone: '+919876543210', city: 'Mumbai', tags: 'vip,frequent' },
+    { name: 'Rahul Mehta', email: 'rahul@gmail.com', phone: '+919876543211', city: 'Delhi', tags: 'new' },
+    { name: 'Priya Nair', email: 'priya@gmail.com', phone: '+919876543212', city: 'Bangalore', tags: 'vip' }
+  ];
+
+  const products = ['Silk Kurta', 'Sneakers', 'Denim Jacket'];
+
+  const { v4: uuidv4 } = require('uuid');
+
+  for (const c of customers) {
+    const id = uuidv4();
+    const orderCount = Math.floor(Math.random() * 3) + 1;
+
+    let total = 0;
+    let lastDate = new Date().toISOString();
+
+    insertCustomer.run(
+      id,
+      c.name,
+      c.email,
+      c.phone,
+      c.city,
+      total,
+      orderCount,
+      lastDate,
+      c.tags
+    );
+
+    for (let i = 0; i < orderCount; i++) {
+      const amount = Math.floor(Math.random() * 4000) + 500;
+      total += amount;
+
+      insertOrder.run(
+        uuidv4(),
+        id,
+        amount,
+        products[Math.floor(Math.random() * products.length)],
+        'fashion',
+        new Date().toISOString()
+      );
+    }
+  }
+
+  console.log("✅ Seed complete");
+};
 seedDatabase();
 app.listen(process.env.PORT, () => {
   console.log(`🚀 CRM API running on port ${process.env.PORT}`);
