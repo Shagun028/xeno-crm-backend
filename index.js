@@ -1,4 +1,6 @@
 require('dotenv').config();
+console.log('KEY EXISTS:', !!process.env.OPENROUTER_API_KEY);
+console.log('KEY PREFIX:', process.env.OPENROUTER_API_KEY?.substring(0, 10));
 const express = require('express');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
@@ -102,20 +104,27 @@ function seedDatabase(db) {
 
 // ─── AI ───────────────────────────────────────────────────────
 async function askAI(prompt) {
-  const response = await axios.post(
-    'https://openrouter.ai/api/v1/chat/completions',
-    {
-      model: 'meta-llama/llama-3.3-8b-instruct:free',
-      messages: [{ role: 'user', content: prompt }]
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json'
+  try {
+    const response = await axios.post(
+      'https://openrouter.ai/api/v1/chat/completions',
+      {
+        model: 'meta-llama/llama-3.3-8b-instruct:free',
+        messages: [{ role: 'user', content: prompt }]
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
       }
-    }
-  );
-  return response.data.choices[0].message.content.trim();
+    );
+    return response.data.choices[0].message.content.trim();
+  } catch (err) {
+    console.error('OpenRouter status:', err.response?.status);
+    console.error('OpenRouter data:', JSON.stringify(err.response?.data));
+    console.error('OpenRouter message:', err.message);
+    throw new Error('AI service unavailable');
+  }
 }
 
 // ─── ROUTES ───────────────────────────────────────────────────
