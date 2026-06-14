@@ -16,6 +16,8 @@ app.use(express.json());
 
 
 
+
+
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.path}`);
   next();
@@ -61,6 +63,11 @@ async function askAI(prompt) {
 app.get('/api/customers', (req, res) => {
   const customers = db.prepare('SELECT * FROM customers ORDER BY total_spent DESC').all();
   res.json(customers);
+});
+
+app.get('/api/seed', (req, res) => {
+  require('./seed.js');
+  res.json({ message: 'Seeding started' });
 });
 
 app.get('/api/customers/:id', (req, res) => {
