@@ -1,3 +1,7 @@
+if (require.main !== module) {
+  module.exports = {};
+  return;
+}
 const { v4: uuidv4 } = require('uuid');
 const db = require('./db');
 
@@ -36,7 +40,8 @@ function randomDate(daysAgo) {
   return d.toISOString();
 }
 
-db.exec('DELETE FROM orders; DELETE FROM customers;');
+db.prepare('DELETE FROM orders').run();
+db.prepare('DELETE FROM customers').run();
 
 const insertCustomer = db.prepare(`
   INSERT INTO customers (id, name, email, phone, city, total_spent, order_count, last_order_date, tags)
